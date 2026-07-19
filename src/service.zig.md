@@ -43,9 +43,9 @@ pub fn setFromTsv(
         column_hashes[idx] = try storage.writeEncodedColumn(io, allocator, repo_root, raw);
     }
 
-    var index = try storage.readDatasetIndex(io, allocator, repo_root);
-    index = try upsertDataset(allocator, index, dataset, parsed.headers, column_hashes);
-    try storage.writeDatasetIndex(io, allocator, repo_root, index);
+    var index = try storage.readIndex(io, allocator, repo_root);
+    index = try upsertIndex(allocator, index, dataset, parsed.headers, column_hashes);
+    try storage.writeIndex(io, allocator, repo_root, index);
 
     return .{ .headers = parsed.headers, .hashes = column_hashes };
 }
@@ -65,13 +65,13 @@ pub fn getAsTsv(
     repo_root: []const u8,
     dataset: []const u8,
 ) ![]u8 {
-    const index = try storage.readDatasetIndex(io, allocator, repo_root);
-    const pos = findName(index.names, dataset) orelse return error.DatasetNotFound;
+    const index = try storage.readIndex(io, allocator, repo_root);
+    const pos = findName(index.names, dataset) orelse return error.IndexNotFound;
 
     const headers = index.headers[pos];
     const hashes = index.col_hashes[pos];
 
-    if (headers.len != hashes.len) return error.InvalidDatasetIndex;
+    if (headers.len != hashes.len) return error.InvalidIndex;
 
     const columns = try allocator.alloc([][]const u8, hashes.len);
     for (hashes, 0..) |hash, idx| {
@@ -83,19 +83,19 @@ pub fn getAsTsv(
 }
 ```
 
-### `listDatasets`
+### `listIndex`
 
 What to notice:
 - Thin pass-through to storage index read.
 - Intentionally keeps listing logic simple and deterministic.
 
 ```zig
-pub fn listDatasets(
+pub fn listIndex(
     io: std.Io,
     allocator: std.mem.Allocator,
     repo_root: []const u8,
 ) ![]const []const u8 {
-    const index = try storage.readDatasetIndex(io, allocator, repo_root);
+    const index = try storage.readIndex(io, allocator, repo_root);
     return index.names;
 }
 ```
@@ -119,21 +119,21 @@ fn verifyStrictlySorted(values: []const []const u8) !void {
 }
 ```
 
-### `upsertDataset`
+### `upsertIndex`
 
 What to notice:
 - Implements replace-or-insert behavior while preserving sorted dataset names.
 - Carefully clones slices because memory ownership is explicit in Zig.
 
 ```zig
-fn upsertDataset(
+fn upsertIndex(
     allocator: std.mem.Allocator,
-    index: storage.DatasetIndex,
+    index: storage.Index,
     dataset: []const u8,
     headers: [][]const u8,
     col_hashes: [][]const u8,
-) !storage.DatasetIndex {
-    if (headers.len != col_hashes.len) return error.InvalidDatasetIndex;
+) !storage.Index {
+    if (headers.len != col_hashes.len) return error.InvalidIndex;
 
     if (findName(index.names, dataset)) |existing| {
         const names = try allocator.dupe([]const u8, index.names);

@@ -1,6 +1,6 @@
 # Collection and schema
 
-Next step: introduce collections so datasets reference a schema by name instead
+Next step: introduce collections so the index references a schema by name instead
 of duplicating headers in the index.
 
 ## Concepts
@@ -14,7 +14,7 @@ of duplicating headers in the index.
 1. Collection names are unique.
 2. Different collection names may share identical schema (`headers` + `types`).
 3. For now, supported column type is only `string`.
-4. Dataset index entries store `collection_name` instead of per-dataset headers.
+4. Index entries store `collection_name` instead of per-dataset headers.
 
 ## Storage model
 

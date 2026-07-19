@@ -14,8 +14,8 @@ This sprint introduces repository abstraction and append/update semantics.
 - Default repository folder is `.serac`.
 - Replace direct uses of hardcoded `.serac` paths with methods on `Repo`.
 - `Repo` must expose constructors/helpers for index handles:
-  - one to instantiate `CollectionIndex` access
-  - one to instantiate `DatasetIndex` access
+  - one to instantiate `Collection` access
+  - one to instantiate `Index` access
 
 ## CLI evolution
 
@@ -50,7 +50,7 @@ for one update range.
 
 ## Index evolution in this sprint
 
-`DatasetIndex` no longer stores direct `col_hashes`. It stores:
+`Index` no longer stores direct `col_hashes`. It stores:
 
 - `names`
 - `collection_name`
@@ -75,7 +75,7 @@ resolved at read time.
   special files.
 - Commit columns are encoded as vectors and stored in a single
   content-addressed commit file whose hash is referenced by
-  `DatasetIndex.commit_hash`.
+  `Index.commit_hash`.
 - A commit row references one write operation (`set`) and includes min/max range
   metadata plus column hashes.
 
@@ -85,9 +85,9 @@ resolved at read time.
   1. validates collection/schema as before
   2. writes column blobs for incoming rows
   3. appends a commit row in a new commit file
-  4. updates dataset index entry with the latest commit hash
+  4. updates index entry with the latest commit hash
 - `get`:
-  1. resolves dataset entry and latest commit hash
+  1. resolves index entry and latest commit hash
   2. traverses/loads commit history
   3. merges commit rows in order
   4. materializes final TSV

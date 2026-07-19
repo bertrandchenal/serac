@@ -12,13 +12,13 @@ const c = @cImport({
 });
 const codec = @import("codec.zig");
 
-pub const DatasetIndex = struct {
+pub const Index = struct {
     names: []const []const u8,
     headers: []const []const []const u8,
     col_hashes: []const []const []const u8,
 };
 
-pub fn readDatasetIndex(io: std.Io, allocator: std.mem.Allocator, repo_root: []const u8) !DatasetIndex {
+pub fn readIndex(io: std.Io, allocator: std.mem.Allocator, repo_root: []const u8) !Index {
     const index_path = try std.fs.path.join(allocator, &.{ repo_root, "index" });
 
     const pointer = readFile(io, allocator, index_path) catch |err| switch (err) {
@@ -53,33 +53,33 @@ pub fn readDatasetIndex(io: std.Io, allocator: std.mem.Allocator, repo_root: []c
     const col_hashes = try codec.decodeStringMatrix(allocator, hashes_raw);
 
     if (names.len != headers.len or names.len != col_hashes.len) {
-        return error.InvalidDatasetIndex;
+        return error.InvalidIndex;
     }
 
     var idx: usize = 1;
     while (idx < names.len) : (idx += 1) {
         if (std.mem.order(u8, names[idx - 1], names[idx]) != .lt) {
-            return error.InvalidDatasetIndex;
+            return error.InvalidIndex;
         }
     }
 
     return .{ .names = names, .headers = headers, .col_hashes = col_hashes };
 }
 
-pub fn writeDatasetIndex(
+pub fn writeIndex(
     io: std.Io,
     allocator: std.mem.Allocator,
     repo_root: []const u8,
-    index: DatasetIndex,
+    index: Index,
 ) !void {
     if (index.names.len != index.headers.len or index.names.len != index.col_hashes.len) {
-        return error.InvalidDatasetIndex;
+        return error.InvalidIndex;
     }
 
     var idx: usize = 1;
     while (idx < index.names.len) : (idx += 1) {
         if (std.mem.order(u8, index.names[idx - 1], index.names[idx]) != .lt) {
-            return error.InvalidDatasetIndex;
+            return error.InvalidIndex;
         }
     }
 
@@ -198,7 +198,7 @@ test "write/read dataset index roundtrip" {
 
     const repo_root = try std.fmt.allocPrint(allocator, ".zig-cache/tmp/{s}/.serac-store", .{tmp.sub_path});
 
-    const index = DatasetIndex{
+    const index = Index{
         .names = &[_][]const u8{ "a", "b" },
         .headers = &[_][]const []const u8{
             &[_][]const u8{ "h1", "h2" },
@@ -210,8 +210,8 @@ test "write/read dataset index roundtrip" {
         },
     };
 
-    try writeDatasetIndex(std.testing.io, allocator, repo_root, index);
-    const loaded = try readDatasetIndex(std.testing.io, allocator, repo_root);
+    try writeIndex(std.testing.io, allocator, repo_root, index);
+    const loaded = try readIndex(std.testing.io, allocator, repo_root);
 
     try std.testing.expectEqual(@as(usize, 2), loaded.names.len);
     try std.testing.expectEqualStrings("a", loaded.names[0]);

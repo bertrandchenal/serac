@@ -40,9 +40,7 @@ pub fn decodeStringVec(allocator: std.mem.Allocator, raw: []const u8) ![][]const
     var idx: usize = 0;
     while (idx < count) : (idx += 1) {
         const len: usize = @intCast(try decodeU64(raw, &offset));
-        std.debug.print("len: {d}!\n", .{len});
         if (raw.len - offset < len) return error.InvalidEncoding;
-        std.debug.print("  Val: {s}\n", .{raw[offset .. offset + len]});
 
         out[idx] = try allocator.dupe(u8, raw[offset .. offset + len]);
         offset += len;

@@ -20,7 +20,7 @@ Stores one TSV dataset in the content-addressed column store.
    e. Otherwise zstd-compress and write the file.
 5. Print a summary line for each column: `<column_name> -> <hex>`.
 6. Update dataset index (`.serac/index`):
-   a. Insert or update the dataset entry in sorted order.
+   a. Insert or update the index entry in sorted order.
    b. Re-encode and persist index columns: `names`, `headers`, `col_hashes`.
 
 Checksums are computed on raw (serialized) column data, not compressed output,

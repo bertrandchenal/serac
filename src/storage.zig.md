@@ -17,14 +17,14 @@ raw filesystem primitives.
 
 ## Function walkthrough (full code, tests omitted)
 
-### `readDatasetIndex`
+### `readIndex`
 
 What to notice:
 - Reads pointer file (`index`) then resolves each referenced blob.
 - Validates shape and sorted-name invariants before returning.
 
 ```zig
-pub fn readDatasetIndex(io: std.Io, allocator: std.mem.Allocator, repo_root: []const u8) !DatasetIndex {
+pub fn readIndex(io: std.Io, allocator: std.mem.Allocator, repo_root: []const u8) !Index {
     const index_path = try std.fs.path.join(allocator, &.{ repo_root, "index" });
 
     const pointer = readFile(io, allocator, index_path) catch |err| switch (err) {
@@ -59,13 +59,13 @@ pub fn readDatasetIndex(io: std.Io, allocator: std.mem.Allocator, repo_root: []c
     const col_hashes = try codec.decodeStringMatrix(allocator, hashes_raw);
 
     if (names.len != headers.len or names.len != col_hashes.len) {
-        return error.InvalidDatasetIndex;
+        return error.InvalidIndex;
     }
 
     var idx: usize = 1;
     while (idx < names.len) : (idx += 1) {
         if (std.mem.order(u8, names[idx - 1], names[idx]) != .lt) {
-            return error.InvalidDatasetIndex;
+            return error.InvalidIndex;
         }
     }
 
@@ -73,27 +73,27 @@ pub fn readDatasetIndex(io: std.Io, allocator: std.mem.Allocator, repo_root: []c
 }
 ```
 
-### `writeDatasetIndex`
+### `writeIndex`
 
 What to notice:
 - Encodes and writes three index columns as content-addressed blobs.
 - Stores only blob hashes in pointer file for compact indirection.
 
 ```zig
-pub fn writeDatasetIndex(
+pub fn writeIndex(
     io: std.Io,
     allocator: std.mem.Allocator,
     repo_root: []const u8,
-    index: DatasetIndex,
+    index: Index,
 ) !void {
     if (index.names.len != index.headers.len or index.names.len != index.col_hashes.len) {
-        return error.InvalidDatasetIndex;
+        return error.InvalidIndex;
     }
 
     var idx: usize = 1;
     while (idx < index.names.len) : (idx += 1) {
         if (std.mem.order(u8, index.names[idx - 1], index.names[idx]) != .lt) {
-            return error.InvalidDatasetIndex;
+            return error.InvalidIndex;
         }
     }
 

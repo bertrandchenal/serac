@@ -92,7 +92,7 @@ pub fn dispatch(
     if (std.mem.eql(u8, args[0], "list")) {
         if (args.len != 1) return error.InvalidArguments;
 
-        const names = try service.listDatasets(io, allocator, default_repo_root);
+        const names = try service.listIndex(io, allocator, default_repo_root);
         for (names) |name| {
             try out.print("{s}\n", .{name});
         }
