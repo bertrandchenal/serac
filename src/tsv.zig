@@ -7,19 +7,10 @@
 //! - no quoting state machine
 
 const std = @import("std");
+const core = @import("core.zig");
+const service = @import("service.zig");
 
-pub const ParsedTsv = struct {
-    headers: [][]const u8,
-    columns: []std.ArrayList([]const u8),
-
-    pub fn deinit(self: *ParsedTsv, allocator: std.mem.Allocator) void {
-        for (self.columns) |*col| col.deinit(allocator);
-        allocator.free(self.columns);
-        allocator.free(self.headers);
-    }
-};
-
-pub fn parse(allocator: std.mem.Allocator, input: []const u8) !ParsedTsv {
+pub fn parse(allocator: std.mem.Allocator, input: []const u8) !core.Segment {
     var line_it = std.mem.splitScalar(u8, input, '\n');
 
     const first_line = line_it.next() orelse return error.EmptyInput;
@@ -86,6 +77,18 @@ pub fn build(
     return out.toOwnedSlice(allocator);
 }
 
+pub fn setFromTsv(
+    io: std.Io,
+    allocator: std.mem.Allocator,
+    repo_root: []const u8,
+    dataset: []const u8,
+    input_tsv: []const u8,
+) !void {
+    const segment = try parse(allocator, input_tsv);
+    defer segment.deinit(allocator); // todo missing deinit is not catched by tests
+    try core.setSegment(io, allocator, repo_root, dataset, &segment);
+}
+
 fn trimCr(line: []const u8) []const u8 {
     if (line.len > 0 and line[line.len - 1] == '\r') return line[0 .. line.len - 1];
     return line;
@@ -132,4 +135,60 @@ test "parse rejects jagged row" {
         "london\n";
 
     try std.testing.expectError(error.InvalidTsvShape, parse(allocator, input));
+}
+
+test "set/get/list roundtrip in isolated repo" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const allocator = arena_state.allocator();
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    const repo_root = try std.fmt.allocPrint(
+        allocator,
+        ".zig-cache/tmp/{s}/.serac-test",
+        .{tmp.sub_path},
+    );
+
+    const input =
+        "city\ttemp\n" ++
+        "london\t15\n" ++
+        "paris\t18\n";
+
+    try setFromTsv(std.testing.io, allocator, repo_root, "temperature", input);
+    // try std.testing.expectEqual(@as(usize, 2), result.headers.len);
+    // try std.testing.expectEqual(@as(usize, 2), result.hashes.len);
+
+    const listed = try service.listIndex(std.testing.io, allocator, repo_root);
+    try std.testing.expectEqual(@as(usize, 1), listed.len);
+    try std.testing.expectEqualStrings("temperature", listed[0]);
+
+    const output = try service.getAsTsv(std.testing.io, allocator, repo_root, "temperature");
+    try std.testing.expectEqualStrings(input, output);
+}
+
+test "set rejects unsorted first column" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const allocator = arena_state.allocator();
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    const repo_root = try std.fmt.allocPrint(
+        allocator,
+        ".zig-cache/tmp/{s}/.serac-test",
+        .{tmp.sub_path},
+    );
+
+    const input =
+        "city\ttemp\n" ++
+        "paris\t18\n" ++
+        "london\t15\n";
+
+    try std.testing.expectError(
+        error.FirstColumnNotSorted,
+        setFromTsv(std.testing.io, allocator, repo_root, "temperature", input),
+    );
 }

@@ -6,6 +6,7 @@
 const std = @import("std");
 const repo = @import("repo");
 const service = @import("service.zig");
+const tsv = @import("tsv.zig");
 
 const default_repo_root = repo.defaultRoot;
 
@@ -36,12 +37,7 @@ pub fn dispatch(
         }
 
         const input_tsv = try readInputAll(io, allocator, input_file);
-        const result = try service.setFromTsv(io, allocator, default_repo_root, dataset, input_tsv);
-
-        var col_idx: usize = 0;
-        while (col_idx < result.headers.len) : (col_idx += 1) {
-            try out.print("{s} -> {s}\n", .{ result.headers[col_idx], result.hashes[col_idx] });
-        }
+        try tsv.setFromTsv(io, allocator, default_repo_root, dataset, input_tsv);
         return;
     }
 
